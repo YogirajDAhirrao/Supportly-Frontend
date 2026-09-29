@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Ticket, Search, Plus, ArrowRight, Clock, Filter } from 'lucide-react';
-import { ticketsApi } from '../lib/api';
+import { Ticket, Search, Plus, ArrowRight, Clock, X } from 'lucide-react';
+import { useDataCache } from '../context/DataCacheContext';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badges';
 import { formatRelativeTime, ROLES } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import Avatar from '../components/ui/Avatar';
 
 export default function TicketsPage() {
   const { user } = useAuth();
+  const { tickets: ticketCache } = useDataCache();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -17,11 +18,11 @@ export default function TicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState('');
 
   useEffect(() => {
-    ticketsApi.list()
-      .then((r) => setTickets(r.data))
+    ticketCache.list()
+      .then(({ data }) => setTickets(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [ticketCache]);
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
@@ -38,6 +39,8 @@ export default function TicketsPage() {
     });
   }, [tickets, search, statusFilter, priorityFilter]);
 
+  const hasFilters = search || statusFilter || priorityFilter;
+
   return (
     <div className="animate-in">
       <div className="page-heading">
@@ -50,7 +53,12 @@ export default function TicketsPage() {
               : 'All Tickets'}
           </h1>
           <p>
-            {loading ? 'Loading…' : `${filtered.length} ticket${filtered.length !== 1 ? 's' : ''} found`}
+            {loading ? 'Loading…' : (
+              <span>
+                <strong style={{ color: 'var(--accent-light)' }}>{filtered.length}</strong>
+                {' '}ticket{filtered.length !== 1 ? 's' : ''}{hasFilters ? ' match your filters' : ' total'}
+              </span>
+            )}
           </p>
         </div>
         {user?.role === ROLES.CUSTOMER && (
@@ -64,7 +72,7 @@ export default function TicketsPage() {
       {/* Filters */}
       <div className="filters-row" style={{ marginBottom: '1.25rem' }}>
         <div className="search-input-wrap">
-          <Search size={14} className="search-icon" />
+          <Search size={13} className="search-icon" />
           <input
             id="ticket-search"
             type="search"
@@ -102,24 +110,25 @@ export default function TicketsPage() {
           <option value="URGENT">Urgent</option>
         </select>
 
-        {(search || statusFilter || priorityFilter) && (
+        {hasFilters && (
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => { setSearch(''); setStatusFilter(''); setPriorityFilter(''); }}
+            style={{ gap: '0.35rem' }}
           >
-            <Filter size={13} /> Clear
+            <X size={13} /> Clear
           </button>
         )}
       </div>
 
       <div className="card">
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '3.5rem' }}>
             <Spinner size="lg" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon"><Ticket size={26} /></div>
+            <div className="empty-icon"><Ticket size={24} /></div>
             <div className="empty-title">
               {tickets.length === 0 ? 'No tickets yet' : 'No tickets match your filters'}
             </div>
@@ -130,7 +139,7 @@ export default function TicketsPage() {
             </div>
             {tickets.length === 0 && user?.role === ROLES.CUSTOMER && (
               <Link to="/tickets/new" className="btn btn-primary btn-sm" style={{ marginTop: '0.5rem' }}>
-                Create Ticket
+                <Plus size={14} /> Create Ticket
               </Link>
             )}
           </div>
@@ -162,7 +171,7 @@ export default function TicketsPage() {
                       </span>
                     </td>
                     <td>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t.category || '—'}</span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t.category || '—'}</span>
                     </td>
                     <td><StatusBadge status={t.status} /></td>
                     <td><PriorityBadge priority={t.priority} /></td>
@@ -170,7 +179,7 @@ export default function TicketsPage() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <Avatar name={t.customer || ''} size="sm" />
-                          <span style={{ fontSize: '0.82rem' }}>{t.customer || '—'}</span>
+                          <span style={{ fontSize: '0.8rem' }}>{t.customer || '—'}</span>
                         </div>
                       </td>
                     )}
@@ -179,16 +188,16 @@ export default function TicketsPage() {
                         {t.assigned_agent ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Avatar name={t.assigned_agent} size="sm" />
-                            <span style={{ fontSize: '0.82rem' }}>{t.assigned_agent}</span>
+                            <span style={{ fontSize: '0.8rem' }}>{t.assigned_agent}</span>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Unassigned</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>
                         )}
                       </td>
                     )}
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                        <Clock size={12} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
+                        <Clock size={11} />
                         {formatRelativeTime(t.updated_at)}
                       </span>
                     </td>

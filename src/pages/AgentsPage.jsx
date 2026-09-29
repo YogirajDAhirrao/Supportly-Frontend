@@ -1,20 +1,37 @@
 import { useEffect, useState } from 'react';
-import { Users, Ticket, BarChart2 } from 'lucide-react';
-import { ticketsApi } from '../lib/api';
-import { StatusBadge } from '../components/ui/Badges';
+import { Users, BarChart2 } from 'lucide-react';
+import { useDataCache } from '../context/DataCacheContext';
 import Avatar from '../components/ui/Avatar';
 import Spinner from '../components/ui/Spinner';
 
+function ResolutionBar({ rate }) {
+  const color = rate > 66 ? '#10b981' : rate > 33 ? '#f59e0b' : '#ef4444';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="progress-bar-track" style={{ minWidth: 80 }}>
+        <div
+          className="progress-bar-fill"
+          style={{ width: `${rate}%`, background: color }}
+        />
+      </div>
+      <span style={{ fontSize: '0.78rem', color, fontWeight: 600, minWidth: 36 }}>
+        {rate}%
+      </span>
+    </div>
+  );
+}
+
 export default function AgentsPage() {
+  const { tickets: ticketCache } = useDataCache();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    ticketsApi.list()
-      .then((r) => setTickets(r.data))
+    ticketCache.list()
+      .then(({ data }) => setTickets(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [ticketCache]);
 
   // Derive agent stats from tickets
   const agentMap = {};
@@ -45,13 +62,13 @@ export default function AgentsPage() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
           <Spinner size="lg" />
         </div>
       ) : agents.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <div className="empty-icon"><Users size={26} /></div>
+            <div className="empty-icon"><Users size={24} /></div>
             <div className="empty-title">No agents yet</div>
             <div className="empty-subtitle">
               Agents will appear here once tickets have been assigned to them.
@@ -61,51 +78,71 @@ export default function AgentsPage() {
       ) : (
         <>
           {/* Agent cards */}
-          <div className="grid-3" style={{ marginBottom: '2rem' }}>
-            {agents.map((agent) => (
-              <div key={agent.name} className="card animate-in">
-                <div className="card-body">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
-                    <Avatar name={agent.name} size="lg" />
+          <div className="grid-3 stagger" style={{ marginBottom: '2rem' }}>
+            {agents.map((agent) => {
+              const rate = agent.total > 0 ? Math.round((agent.resolved / agent.total) * 100) : 0;
+              return (
+                <div key={agent.name} className="card">
+                  <div className="card-body">
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                      <Avatar name={agent.name} size="lg" />
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', letterSpacing: '-0.02em' }}>
+                          {agent.name}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                          Support Agent
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats row */}
+                    <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1rem' }}>
+                      {[
+                        { label: 'Total', value: agent.total, color: 'var(--accent-light)' },
+                        { label: 'Active', value: agent.open + agent.inProgress, color: '#fbbf24' },
+                        { label: 'Done', value: agent.resolved, color: '#34d399' },
+                      ].map(({ label, value, color }) => (
+                        <div
+                          key={label}
+                          style={{
+                            flex: '1 1 0',
+                            background: 'var(--bg-elevated)',
+                            borderRadius: 'var(--radius)',
+                            padding: '0.65rem',
+                            textAlign: 'center',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <div style={{ fontSize: '1.35rem', fontWeight: 800, color, letterSpacing: '-0.04em', lineHeight: 1 }}>
+                            {value}
+                          </div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, fontWeight: 500 }}>
+                            {label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Resolution bar */}
                     <div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{agent.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Support Agent</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>Resolution rate</span>
+                      </div>
+                      <ResolutionBar rate={rate} />
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    {[
-                      { label: 'Total', value: agent.total, color: 'var(--accent-light)' },
-                      { label: 'Active', value: agent.open + agent.inProgress, color: '#fbbf24' },
-                      { label: 'Resolved', value: agent.resolved, color: '#34d399' },
-                    ].map(({ label, value, color }) => (
-                      <div
-                        key={label}
-                        style={{
-                          flex: '1 1 60px',
-                          background: 'var(--bg-elevated)',
-                          borderRadius: 'var(--radius)',
-                          padding: '0.75rem',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color, letterSpacing: '-0.03em' }}>
-                          {value}
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Agent table */}
           <div className="card">
             <div className="card-header">
               <span className="card-title">
-                <BarChart2 size={15} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                <BarChart2 size={16} style={{ color: 'var(--accent-light)' }} />
                 Agent Workload
               </span>
             </div>
@@ -135,28 +172,9 @@ export default function AgentsPage() {
                         <td className="td-primary">{a.total}</td>
                         <td>{a.open}</td>
                         <td>{a.inProgress}</td>
-                        <td style={{ color: '#34d399' }}>{a.resolved}</td>
+                        <td style={{ color: '#34d399', fontWeight: 600 }}>{a.resolved}</td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{
-                              flex: 1, height: 5,
-                              background: 'var(--bg-elevated)',
-                              borderRadius: 99,
-                              overflow: 'hidden',
-                              minWidth: 80,
-                            }}>
-                              <div style={{
-                                height: '100%',
-                                width: `${rate}%`,
-                                background: rate > 66 ? '#10b981' : rate > 33 ? '#f59e0b' : '#ef4444',
-                                borderRadius: 99,
-                                transition: 'width 0.6s ease',
-                              }} />
-                            </div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', minWidth: 34 }}>
-                              {rate}%
-                            </span>
-                          </div>
+                          <ResolutionBar rate={rate} />
                         </td>
                       </tr>
                     );
