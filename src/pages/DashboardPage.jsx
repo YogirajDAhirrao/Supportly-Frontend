@@ -1,40 +1,55 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Ticket, Clock, CheckCircle2, AlertCircle,
-  TrendingUp, ArrowRight, Circle,
+  Ticket, CheckCircle2, AlertCircle,
+  TrendingUp, ArrowRight, Clock, Plus,
+  Activity, Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ticketsApi } from '../lib/api';
+import { useDataCache } from '../context/DataCacheContext';
 import { StatusBadge, PriorityBadge } from '../components/ui/Badges';
 import { formatRelativeTime, ROLES } from '../lib/utils';
 import Spinner from '../components/ui/Spinner';
 
-function StatCard({ icon: Icon, label, value, iconClass }) {
+function StatCard({ icon: Icon, label, value, iconClass, trend }) {
   return (
     <div className="stat-card animate-in">
       <div className={`stat-icon ${iconClass}`}>
         <Icon size={20} />
       </div>
-      <div>
+      <div style={{ flex: 1 }}>
         <div className="stat-value">{value}</div>
         <div className="stat-label">{label}</div>
       </div>
+      {trend != null && (
+        <div style={{
+          alignSelf: 'flex-start',
+          fontSize: '0.7rem',
+          fontWeight: 600,
+          color: trend >= 0 ? '#34d399' : '#f87171',
+          background: trend >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+          padding: '0.2rem 0.45rem',
+          borderRadius: 99,
+        }}>
+          {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
+        </div>
+      )}
     </div>
   );
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { tickets: ticketCache } = useDataCache();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    ticketsApi.list()
-      .then((r) => setTickets(r.data))
+    ticketCache.list()
+      .then(({ data }) => setTickets(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [ticketCache]);
 
   const stats = {
     total: tickets.length,
@@ -45,50 +60,45 @@ export default function DashboardPage() {
   };
 
   const recent = tickets.slice(0, 5);
-
   const firstName = user?.first_name || user?.username || 'there';
-
-  const roleLabel = {
-    [ROLES.CUSTOMER]: 'Customer',
-    [ROLES.SUPPORT_AGENT]: 'Support Agent',
-    [ROLES.SUPPORT_ADMIN]: 'Admin',
-  }[user?.role];
 
   return (
     <div className="animate-in">
       {/* Greeting */}
       <div className="page-heading">
         <div className="page-heading-left">
-          <h1>Good {getGreeting()}, {firstName} 👋</h1>
+          <h1>
+            {getGreeting()}, <span style={{ background: 'var(--grad-accent)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{firstName}</span> 👋
+          </h1>
           <p>Here&apos;s what&apos;s happening with your support tickets today.</p>
         </div>
         {user?.role === ROLES.CUSTOMER && (
           <Link to="/tickets/new" className="btn btn-primary">
-            <Ticket size={15} />
+            <Plus size={15} />
             New Ticket
           </Link>
         )}
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
           <Spinner size="lg" />
         </div>
       ) : (
         <>
           {/* Stats */}
-          <div className="grid-4" style={{ marginBottom: '2rem' }}>
-            <StatCard icon={Ticket}       label="Total Tickets"    value={stats.total}      iconClass="stat-icon-blue" />
-            <StatCard icon={Circle}       label="Open"             value={stats.open}       iconClass="stat-icon-purple" />
-            <StatCard icon={TrendingUp}   label="In Progress"      value={stats.inProgress} iconClass="stat-icon-amber" />
-            <StatCard icon={CheckCircle2} label="Resolved/Closed"  value={stats.resolved}   iconClass="stat-icon-green" />
+          <div className="grid-4 stagger" style={{ marginBottom: '2rem' }}>
+            <StatCard icon={Ticket}       label="Total Tickets"    value={stats.total}      iconClass="stat-icon-blue"   />
+            <StatCard icon={Zap}          label="Open"             value={stats.open}       iconClass="stat-icon-purple" />
+            <StatCard icon={TrendingUp}   label="In Progress"      value={stats.inProgress} iconClass="stat-icon-amber"  />
+            <StatCard icon={CheckCircle2} label="Resolved / Closed" value={stats.resolved}  iconClass="stat-icon-green"  />
           </div>
 
           {stats.urgent > 0 && (
             <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>
               <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
               <span>
-                <strong>{stats.urgent} urgent ticket{stats.urgent > 1 ? 's' : ''}</strong> need{stats.urgent === 1 ? 's' : ''} attention.
+                <strong>{stats.urgent} urgent ticket{stats.urgent > 1 ? 's' : ''}</strong> need{stats.urgent === 1 ? 's' : ''} immediate attention.
               </span>
             </div>
           )}
@@ -96,7 +106,10 @@ export default function DashboardPage() {
           {/* Recent Tickets */}
           <div className="card">
             <div className="card-header">
-              <span className="card-title">Recent Tickets</span>
+              <span className="card-title">
+                <Activity size={16} style={{ color: 'var(--accent-light)' }} />
+                Recent Tickets
+              </span>
               <Link to="/tickets" className="btn btn-ghost btn-sm">
                 View all <ArrowRight size={13} />
               </Link>
@@ -104,7 +117,7 @@ export default function DashboardPage() {
 
             {recent.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon"><Ticket size={26} /></div>
+                <div className="empty-icon"><Ticket size={24} /></div>
                 <div className="empty-title">No tickets yet</div>
                 <div className="empty-subtitle">
                   {user?.role === ROLES.CUSTOMER
@@ -113,7 +126,7 @@ export default function DashboardPage() {
                 </div>
                 {user?.role === ROLES.CUSTOMER && (
                   <Link to="/tickets/new" className="btn btn-primary btn-sm" style={{ marginTop: '0.5rem' }}>
-                    Create Ticket
+                    <Plus size={14} /> Create Ticket
                   </Link>
                 )}
               </div>
@@ -134,7 +147,7 @@ export default function DashboardPage() {
                     {recent.map((t) => (
                       <tr key={t.id}>
                         <td><span className="ticket-number">{t.ticket_number}</span></td>
-                        <td className="td-primary" style={{ maxWidth: 240 }}>
+                        <td className="td-primary" style={{ maxWidth: 260 }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
                             {t.subject}
                           </span>
@@ -142,8 +155,8 @@ export default function DashboardPage() {
                         <td><StatusBadge status={t.status} /></td>
                         <td><PriorityBadge priority={t.priority} /></td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                            <Clock size={12} />
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            <Clock size={11} />
                             {formatRelativeTime(t.updated_at)}
                           </span>
                         </td>
@@ -167,7 +180,7 @@ export default function DashboardPage() {
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }

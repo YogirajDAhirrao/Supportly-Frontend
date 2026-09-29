@@ -46,23 +46,26 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
-          <Headphones size={17} color="#fff" />
+          <Headphones size={16} color="#fff" />
         </div>
         <span className="sidebar-logo-text">
           Support<span>ly</span>
         </span>
       </div>
+      <div className="sidebar-divider" />
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        <span className="sidebar-section-label">Menu</span>
+        <span className="sidebar-section-label">Navigation</span>
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
-            <Icon size={16} />
+            <span className="nav-item-icon">
+              <Icon size={15} />
+            </span>
             {label}
           </NavLink>
         ))}
@@ -74,9 +77,9 @@ export default function Sidebar() {
           <Avatar name={fullName} size="sm" />
           <div className="sidebar-user-info">
             <div className="sidebar-user-name">{fullName || 'User'}</div>
-            <div className="sidebar-user-role">{user?.role?.replace(/_/g, ' ')}</div>
+            <div className="sidebar-user-role">{user?.role?.replace(/_/g, ' ').toLowerCase()}</div>
           </div>
-          <LogOut size={14} color="var(--text-muted)" />
+          <LogOut size={13} color="var(--text-muted)" />
         </div>
       </div>
     </aside>

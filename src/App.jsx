@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { DataCacheProvider } from './context/DataCacheContext';
 import { PublicRoute, ProtectedRoute } from './components/layout/RouteGuards';
 import AppLayout from './components/layout/AppLayout';
 
@@ -16,7 +17,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <DataCacheProvider>
+          <Routes>
           {/* Public routes – redirect to /dashboard if logged in */}
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
@@ -52,7 +54,8 @@ export default function App() {
           {/* Default redirects */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+          </Routes>
+        </DataCacheProvider>
       </AuthProvider>
     </BrowserRouter>
   );
